@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>პაროლების სიმძლავრის ანალიზატორი და Brute-Force სიმულატორი</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Georgian & Monospace Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+Georgian:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans Georgian"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            navy: {
+              950: '#070B19',
+              900: '#0B1124',
+              800: '#121A36',
+              700: '#1B264F',
+            },
+            cyber: {
+              purple: '#8B5CF6',
+              violet: '#A855F7',
+              indigo: '#6366F1',
+              glow: 'rgba(139, 92, 246, 0.25)',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      background-color: #070B19;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(139, 92, 246, 0.14) 0%, transparent 45%),
+        radial-gradient(circle at 85% 80%, rgba(59, 130, 246, 0.12) 0%, transparent 45%);
+      color: #F8FAFC;
+      min-height: 100vh;
+    }
+
+    .glass-card {
+      background: rgba(18, 26, 54, 0.78);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(139, 92, 246, 0.22);
+      box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.55);
+    }
+
+    .metric-card {
+      background: rgba(11, 17, 36, 0.85);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .metric-card:hover {
+      border-color: rgba(168, 85, 247, 0.5);
+      transform: translateY(-2px);
+    }
+
+    .terminal-box {
+      background: #050811;
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.85);
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 12px rgba(139, 92, 246, 0.3); }
+      50% { box-shadow: 0 0 24px rgba(168, 85, 247, 0.65); }
+    }
+
+    .sim-active-glow {
+      animation: pulseGlow 1.8s infinite;
+    }
+  </style>
+</head>
+<body class="font-sans antialiased selection:bg-purple-600 selection:text-white">
+
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+    
+    <!-- Header Section -->
+    <header class="text-center mb-8 sm:mb-10">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-950/60 border border-purple-500/30 text-purple-300 text-xs sm:text-sm font-medium mb-4">
+        <i class="fa-solid fa-shield-halved text-purple-400"></i>
+        <span>კიბერუსაფრთხოება და კრიპტოგრაფიული ანალიზი</span>
+      </div>
+      <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight text-white mb-3 leading-tight">
+        🔐 პაროლების სიმძლავრის ანალიზატორი და Brute-Force სიმულატორი
+      </h1>
+      <p class="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto">
+        საგანმანათლებლო პროექტი კიბერუსაფრთხოებაში | <span class="text-purple-300 font-semibold">ავტორი: სალომე გუგუჩია</span>
+      </p>
+    </header>
+
+    <!-- Input & Demo Presets Section -->
+    <section class="glass-card rounded-2xl p-5 sm:p-7 mb-8">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
+        <label for="passwordInput" class="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2">
+          <i class="fa-solid fa-key text-purple-400"></i>
+          შეიყვანეთ შესამოწმებელი პაროლი:
+        </label>
+
+        <!-- 3 Presentation Demo Scenario Presets -->
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs text-slate-400 mr-1">სატესტო სცენარები:</span>
+          <button type="button" onclick="setDemoPassword('2026')"
+            class="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium bg-rose-950/60 hover:bg-rose-900/70 text-rose-300 border border-rose-500/30 transition cursor-pointer flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+            <span class="font-mono font-bold">2026</span> (სუსტი)
+          </button>
+          <button type="button" onclick="setDemoPassword('Admin@123')"
+            class="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium bg-amber-950/60 hover:bg-amber-900/70 text-amber-300 border border-amber-500/30 transition cursor-pointer flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+            <span class="font-mono font-bold">Admin@123</span> (მოჩვენებითი)
+          </button>
+          <button type="button" onclick="setDemoPassword('Kiber#Gori_2026!')"
+            class="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium bg-emerald-950/60 hover:bg-emerald-900/70 text-emerald-300 border border-emerald-500/30 transition cursor-pointer flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span class="font-mono font-bold">Kiber#Gori_2026!</span> (ძლიერი)
+          </button>
+        </div>
+      </div>
+
+      <!-- Input Field with Eye Toggle -->
+      <div class="relative">
+        <input
+          type="text"
+          id="passwordInput"
+          value="Admin@123"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="ჩაწერეთ ნებისმიერი პაროლი ან აირჩიეთ ზემოთ მოცემული სცენარი..."
+          class="w-full bg-navy-950/90 border-2 border-indigo-500/40 focus:border-purple-500 rounded-xl px-4 py-3.5 pr-24 text-lg sm:text-xl font-mono text-white placeholder-slate-500 focus:outline-none transition"
+        />
+        <div class="absolute inset-y-0 right-2 flex items-center gap-1">
+          <button type="button" onclick="clearPassword()" title="გასუფთავება"
+            class="p-2.5 text-slate-400 hover:text-slate-200 rounded-lg transition cursor-pointer">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+          <button type="button" id="toggleVisibilityBtn" onclick="togglePasswordVisibility()" title="ჩვენება / დამალვა"
+            class="p-2.5 text-purple-400 hover:text-purple-300 rounded-lg transition cursor-pointer">
+            <i id="eyeIcon" class="fa-solid fa-eye"></i>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main 2-Column Workspace -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      
+      <!-- MODULE 1: Strength & Entropy Analysis (7 cols on lg) -->
+      <section class="lg:col-span-7 glass-card rounded-2xl p-6 sm:p-7 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between border-b border-indigo-500/20 pb-4 mb-6">
+            <h2 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-purple-400 text-sm">
+                <i class="fa-solid fa-chart-simple"></i>
+              </span>
+              მოდული 1: სიმძლავრისა და ენტროპიის ანალიზი
+            </h2>
+          </div>
+
+          <!-- Strength Progress Bar -->
+          <div class="mb-6">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs sm:text-sm text-slate-400 font-medium">უსაფრთხოების დონე:</span>
+              <span id="strengthLabel" class="text-sm sm:text-base font-bold text-amber-400">🟠 სუსტი (Weak)</span>
+            </div>
+            <div class="w-full h-3.5 bg-navy-950 rounded-full overflow-hidden p-0.5 border border-slate-800">
+              <div id="strengthBar" class="h-full rounded-full transition-all duration-500 bg-amber-500" style="width: 40%;"></div>
+            </div>
+          </div>
+
+          <!-- Metrics Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3.5 mb-6">
+            <div class="metric-card rounded-xl p-3.5">
+              <div class="text-xs text-slate-400 mb-1">სიგრძე (L)</div>
+              <div id="metricLength" class="text-xl sm:text-2xl font-mono font-bold text-white">9</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">სიმბოლო</div>
+            </div>
+
+            <div class="metric-card rounded-xl p-3.5">
+              <div class="text-xs text-slate-400 mb-1">სიმრავლე (R)</div>
+              <div id="metricCharset" class="text-xl sm:text-2xl font-mono font-bold text-purple-300">94</div>
+              <div id="metricCharsetTypes" class="text-[11px] text-slate-400 mt-0.5 truncate">a-z, A-Z, 0-9, !@#</div>
+            </div>
+
+            <div class="metric-card rounded-xl p-3.5 col-span-2 sm:col-span-1">
+              <div class="text-xs text-slate-400 mb-1">ენტროპია (E)</div>
+              <div id="metricEntropy" class="text-xl sm:text-2xl font-mono font-bold text-indigo-300">58.99</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">ბიტი (L × log₂R)</div>
+            </div>
+
+            <div class="metric-card rounded-xl p-3.5 col-span-2 sm:col-span-2">
+              <div class="text-xs text-slate-400 mb-1">სავარაუდო კომბინაციები (Rᴸ)</div>
+              <div id="metricCombinations" class="text-base sm:text-lg font-mono font-bold text-slate-200 truncate">5.73 × 10¹⁷</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">შესაძლო ვარიანტების სივრცე</div>
+            </div>
+
+            <div class="metric-card rounded-xl p-3.5 col-span-2 sm:col-span-1 border-purple-500/30">
+              <div class="text-xs text-purple-300 mb-1">GPU გატეხვის დრო</div>
+              <div id="metricGpuTime" class="text-sm sm:text-base font-bold text-emerald-400 leading-snug">რამდენიმე წელი</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">10 მილიარდი ჰეში/წმ</div>
+            </div>
+          </div>
+
+          <!-- Heuristic Warnings Box -->
+          <div class="bg-navy-950/70 rounded-xl p-4 border border-slate-800/80">
+            <h3 class="text-xs sm:text-sm font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <i class="fa-solid fa-magnifying-glass-chart text-purple-400"></i>
+              ევრისტიკული შემოწმება და რეკომენდაციები
+            </h3>
+            <ul id="warningsList" class="space-y-2 text-xs sm:text-sm">
+              <!-- Populated by JS -->
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- MODULE 2: Live Brute-Force Simulation (5 cols on lg) -->
+      <section id="simCard" class="lg:col-span-5 glass-card rounded-2xl p-6 sm:p-7 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between border-b border-indigo-500/20 pb-4 mb-5">
+            <h2 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-purple-400 text-sm">
+                <i class="fa-solid fa-terminal"></i>
+              </span>
+              მოდული 2: Brute-Force სიმულაცია
+            </h2>
+          </div>
+
+          <!-- Control Buttons -->
+          <div class="flex gap-3 mb-5">
+            <button id="startSimBtn" type="button" onclick="startBruteForceSimulation()"
+              class="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-purple-950/50 transition flex items-center justify-center gap-2 cursor-pointer">
+              <i class="fa-solid fa-play"></i>
+              <span>სიმულაციის დაწყება</span>
+            </button>
+            <button id="stopSimBtn" type="button" onclick="stopBruteForceSimulation()" disabled
+              class="bg-rose-950/60 hover:bg-rose-900/80 disabled:opacity-40 disabled:cursor-not-allowed text-rose-300 border border-rose-500/30 font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer">
+              <i class="fa-solid fa-stop"></i>
+              <span>შეჩერება</span>
+            </button>
+          </div>
+
+          <!-- Live Terminal Visual Display -->
+          <div class="terminal-box rounded-xl p-4 mb-4 font-mono text-xs sm:text-sm">
+            <div class="flex items-center justify-between text-slate-500 border-b border-slate-800 pb-2 mb-3">
+              <div class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
+                <span class="ml-1.5 text-[11px]">brute_force_engine.exe</span>
+              </div>
+              <span id="simStageBadge" class="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">მზადყოფნა</span>
+            </div>
+
+            <!-- Live Guess Ticker -->
+            <div class="mb-3">
+              <div class="text-[11px] text-slate-400 mb-1">მიმდინარე კომბინაციის მოსინჯვა:</div>
+              <div id="liveTicker" class="bg-navy-900/90 border border-purple-500/30 rounded-lg px-3 py-2.5 text-center text-lg sm:text-xl font-bold text-purple-300 tracking-widest min-h-[46px] flex items-center justify-center overflow-hidden">
+                [ მოლოდინის რეჟიმი ]
+              </div>
+            </div>
+
+            <!-- Live Stats inside Terminal -->
+            <div class="grid grid-cols-2 gap-2.5 text-xs mb-3">
+              <div class="bg-navy-950 p-2.5 rounded-lg border border-slate-800/80">
+                <div class="text-slate-500 text-[11px]">მცდელობები:</div>
+                <div id="simAttempts" class="text-white font-bold text-sm mt-0.5">0</div>
+              </div>
+              <div class="bg-navy-950 p-2.5 rounded-lg border border-slate-800/80">
+                <div class="text-slate-500 text-[11px]">გასული დრო:</div>
+                <div id="simElapsed" class="text-white font-bold text-sm mt-0.5">0.000 წმ</div>
+              </div>
+              <div class="bg-navy-950 p-2.5 rounded-lg border border-slate-800/80 col-span-2 flex items-center justify-between">
+                <span class="text-slate-500 text-[11px]">სიმულაციის სიჩქარე:</span>
+                <span id="simSpeed" class="text-indigo-300 font-bold">0 კომბინაცია/წმ</span>
+              </div>
+            </div>
+
+            <!-- Terminal Log Output -->
+            <div id="simLog" class="text-xs text-slate-300 space-y-1.5 min-h-[115px] max-h-[150px] overflow-y-auto pr-1 leading-relaxed">
+              <div class="text-slate-500">&gt; აირჩიეთ პაროლი და დააჭირეთ ღილაკს „სიმულაციის დაწყება“.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Educational Note -->
+        <div class="text-xs text-slate-400 bg-purple-950/30 border border-purple-500/20 rounded-xl p-3 flex items-start gap-2.5">
+          <i class="fa-solid fa-circle-info text-purple-400 mt-0.5"></i>
+          <span>
+            <strong>მეთოდოლოგია:</strong> სიმულატორი ჯერ ამოწმებს გაჟონილი პაროლების ლექსიკონს (<em>Dictionary Attack</em>), ხოლო შემდეგ გადადის სრულ გადარჩევაზე (<em>Exhaustive Search</em>).
+          </span>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Footer Privacy & Security Notice -->
+    <footer class="mt-10 pt-6 border-t border-slate-800/80 text-center text-xs sm:text-sm text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-2 text-emerald-400/90">
+        <i class="fa-solid fa-lock"></i>
+        <span>უსაფრთხოების გარანტია: აპლიკაცია მუშაობს 100%-ით ლოკალურად თქვენს ბრაუზერში — შეყვანილი პაროლები არსად იგზავნება და არ ინახება.</span>
+      </div>
+      <a href="https://github.com/sguguchia22-ux/Password-Strength-Checker" target="_blank" rel="noopener noreferrer"
+        class="text-purple-400 hover:text-purple-300 font-mono text-xs flex items-center gap-1.5 transition">
+        <i class="fa-brands fa-github"></i>
+        <span>GitHub Repository</span>
+      </a>
+    </footer>
+
+  </div>
+
+  <script>
+    // Common leaked passwords dictionary (matching Python backend logic)
+    const COMMON_PASSWORDS = new Set([
+      "123456", "password", "12345678", "qwerty", "12345", "123456789",
+      "admin", "admin123", "admin@123", "password123", "111111", "iloveyou",
+      "welcome", "monkey", "dragon", "letmein", "football", "2025", "2026",
+      "1234", "0000", "pass123", "qwerty123", "tbilisi", "georgia"
+    ]);
+
+    let simInterval = null;
+    let simTimeout = null;
+    let isSimulating = false;
+
+    const passwordInput = document.getElementById('passwordInput');
+
+    // Initialize analysis on load
+    window.addEventListener('DOMContentLoaded', () => {
+      analyzePassword(passwordInput.value);
+    });
+
+    passwordInput.addEventListener('input', (e) => {
+      stopBruteForceSimulation();
+      analyzePassword(e.target.value);
+    });
+
+    function setDemoPassword(pwd) {
+      stopBruteForceSimulation();
+      passwordInput.value = pwd;
+      analyzePassword(pwd);
+    }
+
+    function clearPassword() {
+      stopBruteForceSimulation();
+      passwordInput.value = '';
+      analyzePassword('');
+      passwordInput.focus();
+    }
+
+    function togglePasswordVisibility() {
+      const eyeIcon = document.getElementById('eyeIcon');
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        eyeIcon.className = 'fa-solid fa-eye';
+      } else {
+        passwordInput.type = 'password';
+        eyeIcon.className = 'fa-solid fa-eye-slash';
+      }
+    }
+
+    function formatTimeGeorgian(seconds) {
+      if (seconds <= 0) return "0 წამი";
+      if (seconds < 0.001) return "მყისიერად (< 1 მწმ)";
+      if (seconds < 60) return `${seconds.toFixed(2)} წამი`;
+      if (seconds < 3600) return `${(seconds / 60).toFixed(1)} წუთი`;
+      if (seconds < 86400) return `${(seconds / 3600).toFixed(1)} საათი`;
+      if (seconds < 31536000) return `${(seconds / 86400).toFixed(1)} დღე`;
+
+      const years = seconds / 31536000;
+      if (years < 1000) return `${Math.round(years)} წელი`;
+      if (years < 1_000_000) return `${(years / 1000).toFixed(1)} ათასი წელი`;
+      if (years < 1_000_000_000) return `${(years / 1_000_000).toFixed(1)} მილიონი წელი`;
+      return `${years.toExponential(2)} წელი`;
+    }
+
+    function formatLargeNumber(num) {
+      if (num === 0) return "0";
+      if (num < 1e9) return Math.round(num).toLocaleString('en-US');
+      return num.toExponential(2).replace('e+', ' × 10^');
+    }
+
+    function analyzePassword(password) {
+      const length = password.length;
+      let charsetSize = 0;
+      const types = [];
+
+      if (/[a-z]/.test(password)) {
+        charsetSize += 26;
+        types.push("a-z");
+      }
+      if (/[A-Z]/.test(password)) {
+        charsetSize += 26;
+        types.push("A-Z");
+      }
+      if (/[0-9]/.test(password)) {
+        charsetSize += 10;
+        types.push("0-9");
+      }
+      if (/[^a-zA-Z0-9]/.test(password)) {
+        charsetSize += 32;
+        types.push("!@#");
+      }
+
+      // Entropy calculation: E = L * log2(R)
+      const entropy = (length > 0 && charsetSize > 0) ? length * Math.log2(charsetSize) : 0;
+
+      // Combinations & GPU time (10 Billion hashes/sec)
+      const totalCombinations = (length > 0 && charsetSize > 0) ? Math.pow(charsetSize, length) : 0;
+      const gpuSpeed = 10_000_000_000;
+      const estimatedSeconds = (totalCombinations / 2) / gpuSpeed;
+
+      // Update Metrics UI
+      document.getElementById('metricLength').textContent = length;
+      document.getElementById('metricCharset').textContent = charsetSize;
+      document.getElementById('metricCharsetTypes').textContent = types.length ? types.join(', ') : 'ცარიელი';
+      document.getElementById('metricEntropy').textContent = entropy.toFixed(2);
+      document.getElementById('metricCombinations').textContent = formatLargeNumber(totalCombinations);
+
+      const isCommon = COMMON_PASSWORDS.has(password.toLowerCase());
+      const gpuTimeEl = document.getElementById('metricGpuTime');
+
+      if (length === 0) {
+        gpuTimeEl.textContent = "—";
+        gpuTimeEl.className = "text-sm sm:text-base font-bold text-slate-400";
+      } else if (isCommon) {
+        gpuTimeEl.textContent = "მყისიერად (ლექსიკონი)";
+        gpuTimeEl.className = "text-sm sm:text-base font-bold text-rose-400";
+      } else {
+        gpuTimeEl.textContent = formatTimeGeorgian(estimatedSeconds);
+        gpuTimeEl.className = estimatedSeconds < 86400
+          ? "text-sm sm:text-base font-bold text-rose-400"
+          : (estimatedSeconds < 31536000 * 100 ? "text-sm sm:text-base font-bold text-amber-400" : "text-sm sm:text-base font-bold text-emerald-400");
+      }
+
+      // Heuristic Checks
+      const warnings = [];
+      if (length === 0) {
+        warnings.push({ type: 'info', text: 'შეიყვანეთ პაროლი დეტალური ანალიზის სანახავად.' });
+      } else {
+        if (isCommon) {
+          warnings.push({ type: 'danger', text: 'პაროლი მოიძებნა გაჟონილი პაროლების ლექსიკონში (Dictionary Attack რისკი)!' });
+        }
+        if (length < 8) {
+          warnings.push({ type: 'danger', text: 'პაროლი ძალიან მოკლეა (რეკომენდებულია მინიმუმ 12-14 სიმბოლო).' });
+        } else if (length < 12) {
+          warnings.push({ type: 'warn', text: 'სასურველია სიგრძის გაზრდა 12+ სიმბოლომდე უკეთესი მდგრადობისთვის.' });
+        }
+        if (/(.)\1\1/.test(password)) {
+          warnings.push({ type: 'warn', text: 'შეიცავს ერთი და იმავე სიმბოლოს განმეორებას (მაგ., "aaa" ან "111").' });
+        }
+        if (/(1234|2345|3456|4567|5678|6789|abcd|qwerty)/i.test(password)) {
+          warnings.push({ type: 'warn', text: 'შეიცავს კლავიატურის ან ციფრების სტანდარტულ თანმიმდევრობას.' });
+        }
+        if (/^[a-zA-Z]+@?\d{1,4}[!@#$]?$/.test(password) && length <= 10) {
+          warnings.push({ type: 'warn', text: 'პროგნოზირებადი შაბლონი: სიტყვა + სიმბოლო + წელი/ციფრები (Hybrid Attack რისკი).' });
+        }
+      }
+
+      // Render Warnings
+      const warningsList = document.getElementById('warningsList');
+      warningsList.innerHTML = '';
+
+      if (warnings.length === 0 && length > 0) {
+        warningsList.innerHTML = `
+          <li class="flex items-start gap-2 text-emerald-400">
+            <i class="fa-solid fa-circle-check mt-1"></i>
+            <span>შესანიშნავია! სტრუქტურული სისუსტეები არ აღმოჩნდა. პაროლი მდგრადია.</span>
+          </li>`;
+      } else {
+        warnings.forEach(w => {
+          let icon = 'fa-triangle-exclamation text-amber-400';
+          let color = 'text-amber-200';
+          if (w.type === 'danger') {
+            icon = 'fa-circle-xmark text-rose-400';
+            color = 'text-rose-300';
+          } else if (w.type === 'info') {
+            icon = 'fa-circle-info text-slate-400';
+            color = 'text-slate-400';
+          }
+          warningsList.innerHTML += `
+            <li class="flex items-start gap-2 ${color}">
+              <i class="fa-solid ${icon} mt-1"></i>
+              <span>${w.text}</span>
+            </li>`;
+        });
+      }
+
+      // Strength Rating & Progress Bar
+      const strengthLabel = document.getElementById('strengthLabel');
+      const strengthBar = document.getElementById('strengthBar');
+
+      if (length === 0) {
+        strengthLabel.textContent = "—";
+        strengthLabel.className = "text-sm sm:text-base font-bold text-slate-400";
+        strengthBar.style.width = "0%";
+      } else if (isCommon || entropy < 28) {
+        strengthLabel.textContent = "🔴 ძალიან სუსტი (Very Weak)";
+        strengthLabel.className = "text-sm sm:text-base font-bold text-rose-400";
+        strengthBar.className = "h-full rounded-full transition-all duration-500 bg-rose-500";
+        strengthBar.style.width = "18%";
+      } else if (entropy < 50) {
+        strengthLabel.textContent = "🟠 სუსტი (Weak)";
+        strengthLabel.className = "text-sm sm:text-base font-bold text-orange-400";
+        strengthBar.className = "h-full rounded-full transition-all duration-500 bg-orange-500";
+        strengthBar.style.width = "38%";
+      } else if (entropy < 75) {
+        strengthLabel.textContent = "🟡 საშუალო (Moderate)";
+        strengthLabel.className = "text-sm sm:text-base font-bold text-amber-400";
+        strengthBar.className = "h-full rounded-full transition-all duration-500 bg-amber-400";
+        strengthBar.style.width = "62%";
+      } else if (entropy < 100) {
+        strengthLabel.textContent = "🟢 ძლიერი (Strong)";
+        strengthLabel.className = "text-sm sm:text-base font-bold text-emerald-400";
+        strengthBar.className = "h-full rounded-full transition-all duration-500 bg-emerald-500";
+        strengthBar.style.width = "84%";
+      } else {
+        strengthLabel.textContent = "💎 კრიპტოგრაფიულად მდგრადი (Very Strong)";
+        strengthLabel.className = "text-sm sm:text-base font-bold text-purple-300";
+        strengthBar.className = "h-full rounded-full transition-all duration-500 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-400";
+        strengthBar.style.width = "100%";
+      }
+    }
+
+    // --- MODULE 2: Live Brute-Force Simulation ---
+    function appendSimLog(htmlText) {
+      const simLog = document.getElementById('simLog');
+      const line = document.createElement('div');
+      line.innerHTML = htmlText;
+      simLog.appendChild(line);
+      simLog.scrollTop = simLog.scrollHeight;
+    }
+
+    function stopBruteForceSimulation() {
+      if (simInterval) clearInterval(simInterval);
+      if (simTimeout) clearTimeout(simTimeout);
+      simInterval = null;
+      simTimeout = null;
+      isSimulating = false;
+
+      document.getElementById('startSimBtn').disabled = false;
+      document.getElementById('stopSimBtn').disabled = true;
+      document.getElementById('simCard').classList.remove('sim-active-glow');
+      const badge = document.getElementById('simStageBadge');
+      if (badge.textContent === 'მიმდინარეობს...') {
+        badge.textContent = 'შეჩერებულია';
+        badge.className = 'text-[11px] px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-500/30';
+      }
+    }
+
+    function startBruteForceSimulation() {
+      const target = passwordInput.value;
+      if (!target) {
+        document.getElementById('simLog').innerHTML = '<div class="text-rose-400">&gt; ⚠️ გთხოვთ, ჯერ შეიყვანოთ პაროლი!</div>';
+        return;
+      }
+
+      stopBruteForceSimulation();
+      isSimulating = true;
+
+      document.getElementById('startSimBtn').disabled = true;
+      document.getElementById('stopSimBtn').disabled = false;
+      document.getElementById('simCard').classList.add('sim-active-glow');
+
+      const badge = document.getElementById('simStageBadge');
+      badge.textContent = 'მიმდინარეობს...';
+      badge.className = 'text-[11px] px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-500/40';
+
+      const simLog = document.getElementById('simLog');
+      const liveTicker = document.getElementById('liveTicker');
+      const simAttemptsEl = document.getElementById('simAttempts');
+      const simElapsedEl = document.getElementById('simElapsed');
+      const simSpeedEl = document.getElementById('simSpeed');
+
+      simLog.innerHTML = '';
+      simAttemptsEl.textContent = '0';
+      simElapsedEl.textContent = '0.000 წმ';
+      simSpeedEl.textContent = '0 კომბინაცია/წმ';
+      liveTicker.className = 'bg-navy-900/90 border border-purple-500/30 rounded-lg px-3 py-2.5 text-center text-lg sm:text-xl font-bold text-purple-300 tracking-widest min-h-[46px] flex items-center justify-center overflow-hidden';
+
+      appendSimLog('<span class="text-indigo-400">&gt; [ეტაპი 1] ლექსიკონით შეტევის (Dictionary Attack) გაშვება...</span>');
+
+      // Stage 1: Dictionary Attack check with brief realistic visual scan
+      const dictSamples = ["123456", "password", "qwerty", "admin", "welcome", "2025", "admin123", target];
+      let dictIdx = 0;
+
+      simInterval = setInterval(() => {
+        if (!isSimulating) return;
+        liveTicker.textContent = dictSamples[dictIdx % dictSamples.length];
+        simAttemptsEl.textContent = (dictIdx + 1).toLocaleString('en-US');
+        dictIdx++;
+      }, 80);
+
+      simTimeout = setTimeout(() => {
+        if (!isSimulating) return;
+        clearInterval(simInterval);
+
+        if (COMMON_PASSWORDS.has(target.toLowerCase())) {
+          // Instant Dictionary Match
+          liveTicker.textContent = target;
+          liveTicker.className = 'bg-rose-950/80 border border-rose-500 rounded-lg px-3 py-2.5 text-center text-lg sm:text-xl font-bold text-rose-300 tracking-widest min-h-[46px] flex items-center justify-center';
+          simAttemptsEl.textContent = '14';
+          simElapsedEl.textContent = '0.0004 წმ';
+          simSpeedEl.textContent = '35,000 კომბინაცია/წმ';
+
+          appendSimLog(`<span class="text-rose-400 font-bold">&gt; 💥 გატეხილია! პაროლი "${target}" ნაპოვნია გაჟონილი პაროლების ლექსიკონში!</span>`);
+          appendSimLog('<span class="text-slate-400">&gt; მიზეზი: სტრუქტურულად პროგნოზირებადი ან გავრცელებული კომბინაცია.</span>');
+
+          badge.textContent = 'გატეხილია (Dictionary)';
+          badge.className = 'text-[11px] px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-500/40';
+          finishSimulationUI();
+          return;
+        }
+
+        // Not in Dictionary -> Proceed to Stage 2: Exhaustive Search
+        appendSimLog('<span class="text-slate-400">&gt; ლექსიკონში ვერ მოიძებნა.</span>');
+        appendSimLog('<span class="text-purple-400">&gt; [ეტაპი 2] სრული გადარჩევის (Exhaustive Search) დაწყება...</span>');
+
+        // Build character pool matching target
+        let pool = "";
+        if (/[0-9]/.test(target)) pool += "0123456789";
+        if (/[a-z]/.test(target)) pool += "abcdefghijklmnopqrstuvwxyz";
+        if (/[A-Z]/.test(target)) pool += "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        if (/[^a-zA-Z0-9]/.test(target)) pool += "!@#$%^&*_-+=?";
+        if (!pool) pool = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+        const startTime = performance.now();
+
+        // If short password (<= 4 chars), perform real exhaustive search in JS!
+        if (target.length <= 4) {
+          runRealExhaustiveSearch(target, pool, startTime);
+        } else {
+          // For longer passwords (> 4 chars), run live visual ticker for 3.5s and show mathematical wall
+          runLongPasswordSimulation(target, pool, startTime);
+        }
+      }, 750);
+    }
+
+    function runRealExhaustiveSearch(target, pool, startTime) {
+      let attempts = 0;
+      const len = target.length;
+      const indices = new Array(len).fill(0);
+      const poolLen = pool.length;
+      let found = false;
+
+      // Batch iterations per animation frame so UI stays responsive and fast
+      function step() {
+        if (!isSimulating) return;
+
+        const batchSize = 3500;
+        let currentGuess = "";
+
+        for (let b = 0; b < batchSize; b++) {
+          attempts++;
+          currentGuess = "";
+          for (let i = 0; i < len; i++) {
+            currentGuess += pool[indices[i]];
+          }
+
+          if (currentGuess === target) {
+            found = true;
+            break;
+          }
+
+          // Increment base-N counter
+          let pos = len - 1;
+          while (pos >= 0) {
+            indices[pos]++;
+            if (indices[pos] < poolLen) break;
+            indices[pos] = 0;
+            pos--;
+          }
+          if (pos < 0) {
+            found = true;
+            break;
+          }
+        }
+
+        const elapsedSec = (performance.now() - startTime) / 1000;
+        const speed = elapsedSec > 0 ? Math.round(attempts / elapsedSec) : attempts;
+
+        document.getElementById('liveTicker').textContent = currentGuess;
+        document.getElementById('simAttempts').textContent = attempts.toLocaleString('en-US');
+        document.getElementById('simElapsed').textContent = `${elapsedSec.toFixed(3)} წმ`;
+        document.getElementById('simSpeed').textContent = `${speed.toLocaleString('en-US')} კომბინაცია/წმ`;
+
+        if (found) {
+          const liveTicker = document.getElementById('liveTicker');
+          liveTicker.textContent = target;
+          liveTicker.className = 'bg-rose-950/80 border border-rose-500 rounded-lg px-3 py-2.5 text-center text-lg sm:text-xl font-bold text-rose-300 tracking-widest min-h-[46px] flex items-center justify-center';
+
+          appendSimLog(`<span class="text-rose-400 font-bold">&gt; 💥 წარმატება! პაროლი "${target}" გატეხილია!</span>`);
+          appendSimLog(`<span class="text-slate-300">&gt; სულ მცდელობა: ${attempts.toLocaleString('en-US')} | დრო: ${elapsedSec.toFixed(3)} წმ</span>`);
+
+          const badge = document.getElementById('simStageBadge');
+          badge.textContent = 'გატეხილია (Brute-Force)';
+          badge.className = 'text-[11px] px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-500/40';
+          finishSimulationUI();
+        } else {
+          simInterval = requestAnimationFrame(step);
+        }
+      }
+
+      simInterval = requestAnimationFrame(step);
+    }
+
+    function runLongPasswordSimulation(target, pool, startTime) {
+      let attempts = 0;
+      const len = target.length;
+      const totalSpace = Math.pow(pool.length, len);
+      const gpuTimeStr = formatTimeGeorgian((totalSpace / 2) / 10_000_000_000);
+
+      simInterval = setInterval(() => {
+        if (!isSimulating) return;
+        attempts += Math.floor(Math.random() * 48000) + 32000;
+        const elapsedSec = (performance.now() - startTime) / 1000;
+
+        // Generate random visual guess of same length
+        let randomGuess = "";
+        for (let i = 0; i < Math.min(len, 18); i++) {
+          randomGuess += pool[Math.floor(Math.random() * pool.length)];
+        }
+        if (len > 18) randomGuess += "…";
+
+        document.getElementById('liveTicker').textContent = randomGuess;
+        document.getElementById('simAttempts').textContent = attempts.toLocaleString('en-US');
+        document.getElementById('simElapsed').textContent = `${elapsedSec.toFixed(2)} წმ`;
+        document.getElementById('simSpeed').textContent = `~1,250,000 კომბინაცია/წმ`;
+      }, 65);
+
+      simTimeout = setTimeout(() => {
+        if (!isSimulating) return;
+        clearInterval(simInterval);
+
+        const liveTicker = document.getElementById('liveTicker');
+        liveTicker.textContent = "🛡️ დაცულია (გაუტეხავი)";
+        liveTicker.className = 'bg-emerald-950/80 border border-emerald-500 rounded-lg px-3 py-2.5 text-center text-base sm:text-lg font-bold text-emerald-300 min-h-[46px] flex items-center justify-center';
+
+        appendSimLog(`<span class="text-emerald-400 font-bold">&gt; 🛡️ სიმულაცია შეჩერდა: პაროლი მდგრადია Brute-Force შეტევის მიმართ!</span>`);
+        appendSimLog(`<span class="text-slate-300">&gt; სიგრძე (${len} სიმბოლო) ქმნის კოლოსალურ სივრცეს. სრულ გადარჩევას GPU-ზეც კი დასჭირდება: <strong class="text-emerald-300">${gpuTimeStr}</strong>.</span>`);
+
+        const badge = document.getElementById('simStageBadge');
+        badge.textContent = 'მდგრადი / დაცული';
+        badge.className = 'text-[11px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40';
+        finishSimulationUI();
+      }, 3200);
+    }
+
+    function finishSimulationUI() {
+      isSimulating = false;
+      simInterval = null;
+      simTimeout = null;
+      document.getElementById('startSimBtn').disabled = false;
+      document.getElementById('stopSimBtn').disabled = true;
+      document.getElementById('simCard').classList.remove('sim-active-glow');
+    }
+  </script>
+</body>
+</html>
